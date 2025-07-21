@@ -106,11 +106,12 @@ def map_statistics(
             k: {
                 'numeric_samples': [],
                 'text_counts': set(),
-            } for k in property_samples
+            } for k in property_samples   # iterate through key in property_samples
         }
 
         last_time = None
 
+        # for each event, add the 'age' and 'delta' to the age_stats
         for event in subject.events:
             if event.time is not None and event.time.date() > birth_date.date():
                 age = (event.time - birth_date).total_seconds()
@@ -128,7 +129,7 @@ def map_statistics(
                 if k == 'code':
                     code_set.add(v)
                 elif k in pat_samples:
-                    possib_float = try_float(v)
+                    possib_float = try_float(v) # try to convert the value to a float
                     if possib_float is not None:
                         pat_samples[k]['numeric_samples'].append(possib_float)
                     else:
@@ -139,6 +140,7 @@ def map_statistics(
         for code in code_set:
             final_codes |= ontology.get_all_parents(code)
 
+        # count the frequency of each code for each subject on average
         for code in final_codes:
             code_counts[code] += 1 / num_subjects
 
@@ -148,7 +150,7 @@ def map_statistics(
                 res['text_counts'][text] += 1 / num_subjects
             for value in v['numeric_samples']:
                 res['numeric_samples'].add(value, 1 / (num_subjects * len(v['numeric_samples'])))
-            res['numeric_count'] += len(v['numeric_samples']) / weight
+            res['numeric_count'] += len(v['numeric_samples']) / weight  # absolute count of numeric samples
 
     return {
         "age_stats": dict(age_stats),
@@ -201,6 +203,7 @@ def convert_statistics_to_msgpack(
 
         numeric_samples = list(property_data["numeric_samples"].samples)
 
+        # discretize the numeric values and add quantiles to the vocabulary
         if len(numeric_samples) > 0:
             assert num_numeric >= 1
 
@@ -279,7 +282,22 @@ class HierarchicalTokenizer(transformers.utils.PushToHubMixin):
                 )
             ),
         )
+        '''
+        {
+            "age_stats": { … },         # OnlineStatistics for time gaps & ages
+            "code_counts": { code → weight },    # aggregate frequency of each code
+            "property_samples": { prop → {
+                "numeric_samples": ReservoirSampler, 
+                "text_counts": { value → weight },
+                "numeric_count": total_numeric_events
+                }
+            }
+        }
 
+        '''
+
+
+        # a dictionary of the statistics
         whatever = convert_statistics_to_msgpack(statistics, vocab_size, num_numeric, ontology, min_fraction)
 
         return HierarchicalTokenizer(
@@ -301,6 +319,8 @@ class HierarchicalTokenizer(transformers.utils.PushToHubMixin):
         self.vocab_size = len(vocab)
 
         numeric_entries = collections.defaultdict(list)
+
+        # initialize the lookup tables
         for i, dict_entry in enumerate(vocab):
             if dict_entry["type"] == "code":
                 self.code_lookup[dict_entry["code_string"]] = i
@@ -357,7 +377,6 @@ class HierarchicalTokenizer(transformers.utils.PushToHubMixin):
     def save_pretrained(self, save_directory: Union[str, os.PathLike], push_to_hub: bool = False, **kwargs):
         """
         Save the FEMR tokenizer.
-
 
         This method make sure the batch processor can then be re-loaded using the
         .from_pretrained class method.
