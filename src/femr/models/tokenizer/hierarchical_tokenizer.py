@@ -8,7 +8,7 @@ import math
 import os
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Set, Tuple, Union
 import meds
-
+from tqdm import tqdm
 import meds_reader
 import msgpack
 import numpy as np
@@ -91,7 +91,8 @@ def map_statistics(
         } for k in properties if k not in bad_properties
     }
 
-    for subject in subjects:
+    print("Mapping statistics for each subject")
+    for subject in tqdm(subjects):
         total_events = len(subject.events)
 
         if total_events == 0:
@@ -266,6 +267,7 @@ class HierarchicalTokenizer(transformers.utils.PushToHubMixin):
         banned_properties: Set[str] = {}, 
     ) -> HierarchicalTokenizer:
         """Train a FEMR tokenizer from the given dataset"""
+        print("Training tokenizer")
 
         properties = db.properties
         for banned in banned_properties:
